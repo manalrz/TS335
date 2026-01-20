@@ -1,0 +1,13 @@
+clear; close all; clc;
+
+%% Chargement des données
+load donnees_GPS_TP.mat
+load trajectoire_TP.mat
+
+%% Conversion minutes -> degrés -> radian
+dlat = dms2degrees(0.48);
+dlon = dms2degrees(0.35);
+
+alt = deg2rad(0);
+lat = deg2rad(44) + deg2rad(dlat);
+lon = deg2rad(0) + deg2rad(dlon);
