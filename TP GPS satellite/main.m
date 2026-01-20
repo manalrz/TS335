@@ -4,6 +4,10 @@ clear; close all; clc;
 load donnees_GPS_TP.mat
 load trajectoire_TP.mat
 [~, T] = size(PRN);
+DOP = zeros(1, T);
+PDOP = zeros(1, T);
+VDOP = zeros(1, T);
+HDOP = zeros(1, T);
 
 %% Coordonnées point de ref P0 (question 2)
 alt = 0;
@@ -77,6 +81,16 @@ for t = 1:T
     Xhat_ecef(:,t) = X(1:3);
     bhat(t)        = X(4);
     X0             = X;
+
+    H_tilde = inv(H.'*H);
+    DOP(t) = sqrt(trace(H_tilde));
+    PDOP(t) = sqrt(trace(H_tilde) - H_tilde(4, 4));
+
+    H_new = H;                
+    H_new(:,1:3) = H(:,1:3) * M; 
+    H_tilde = inv(H_new.'*H_new);
+    HDOP(t) = sqrt(trace(H_tilde) - H_tilde(4, 4) - H_tilde(3, 3));
+    VDOP(t) = sqrt(H_tilde(3, 3));
 end
 
 Xhat_loc = nan(3, T);
@@ -330,3 +344,15 @@ plot(biases, mse_bias, 'LineWidth', 1.5);
 grid on;
 xlabel('Biais B (m)'); ylabel('EQM (m^2)');
 title(['Robustesse aux multitrajets : EQM en fonction de B (sat ', num2str(sat_biased), ')']);
+
+figure;
+plot(DOP, 'Linewidth', 1.5);
+hold on;
+plot(PDOP, 'Linewidth', 1.5);
+plot(HDOP, 'Linewidth', 1.5);
+plot(VDOP, 'Linewidth', 1.5);
+hold off;
+legend('DOP', 'PDOP', 'HDOP', 'VDOP');
+grid on;
+xlabel('t (s)')
+title('Dilution of Precision')
