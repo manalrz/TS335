@@ -75,9 +75,11 @@ iFigure=iFigure+1;
 
 %% IMU data in body frame
 % =========================
-% R_platform2body = %------------ TO BE COMPLETED ---------------%;
-% f_bi_b = %------------ TO BE COMPLETED ---------------%;
-% w_bi_b = %------------ TO BE COMPLETED ---------------%;
+R_platform2body = [1 0 0; 
+                   0 -1 0; 
+                   0 0 -1];
+f_bi_b = f_bi_p*R_platform2body;
+w_bi_b = w_bi_p*R_platform2body;
 
 % Correct heading rate from initial gyro bias
 % ---------------------------------------
@@ -96,9 +98,9 @@ aAT_ins   = f_bi_b(:,1) - bacc; % m/s²
 % State progation model
 StateVectorLenght = 6;
 % Initialize error state vector - delta_X_IRS
-% X0 =  %------------ TO BE COMPLETED ---------------% 
+X0 =  zeros(StateVectorLenght, 1);
 % Initialize covariance matrix - cov(X0)
-% S0 =  %------------ TO BE COMPLETED ---------------% 
+S0 = diag([5 5 5 1 0.1 1].^2);
 % Measurement model
 MeasVectorLenght = 2;
 meas = zeros(MeasVectorLenght,1); % Initialize measurement vector
@@ -158,15 +160,21 @@ for i=1:nPts_IMU
     % ============================
     if (i == 1)  % Initialize IRS platform
         dT = Ts;
-        % psi_ins(i) = %------------ TO BE COMPLETED ---------------%
-        % vAT_ins(i) = %------------ TO BE COMPLETED ---------------%
-        % vn_ins(i) = %------------ TO BE COMPLETED ---------------%
-        % ve_ins(i) = %------------ TO BE COMPLETED ---------------%
-        % pn_ins(i) = %------------ TO BE COMPLETED ---------------%
-        % pe_ins(i) = %------------ TO BE COMPLETED ---------------%
+        psi_ins(i) = heading_Ref(1);
+        vAT_ins(i) = 0;
+        vn_ins(i) = 0;
+        ve_ins(i) = 0;
+        pn_ins(i) = 0;
+        pe_ins(i) = 0;
     else % IRS navigation
 
-        %------------ TO BE COMPLETED : CALL TO THE FUNCTION IRS_Navigation.m ---------------%;
+        [vAT_ins(i), psi_ins(i), pn_ins(i), pe_ins(i), vn_ins(i), ve_ins(i)] = ...
+            IRS_Navigation( ...
+                aAT_ins(i), aAT_ins(i-1), ...
+                HeadingRate_ins(i), HeadingRate_ins(i-1), ...
+                vAT_ins(i-1), psi_ins(i-1), ...
+                pn_ins(i-1), pe_ins(i-1), ...
+                dT );
 
     end
     
@@ -176,10 +184,17 @@ for i=1:nPts_IMU
     % Continuous-time state transition model
     % ---------------------------------------------------
     % State transition matrix - continuous time
-    % Ft =  %------------ TO BE COMPLETED ---------------% 
+    Ft = [ ...
+    0  0  cos(psi_ins(i))             0  -vAT_ins(i)*sin(psi_ins(i))   0;
+    0  0  sin(psi_ins(i))             0   vAT_ins(i)*cos(psi_ins(i))   0;
+    0  0  0                           1   0                            0;
+    0  0  0                          -1/5 0                            0;
+    0  0  0                           0   0                            1;
+    0  0  0                           0   0                            -1/5
+    ];
     
     % Process noise covariance matrix - continuous time
-    % Qt =  %------------ TO BE COMPLETED ---------------%
+    Qt = diag([0 0 0.1 0.05 0.01 0.001].^2);
     
     % Discrete-time state transition model
     % -------------------------------------------------
@@ -202,13 +217,13 @@ for i=1:nPts_IMU
             obs_GPS = [ned_GPS(iGPS,1); ned_GPS(iGPS,2)]; % Observation vector - GPS
             obs_pred = [pn_ins(i); pe_ins(i)]; % Observation vector prediction - IRS
             % Measurement vector
-            % meas =   %------------ TO BE COMPLETED ---------------%
+            meas = obs_GPS - obs_pred;  % Innovation mesurée = GPS - IRS
             
             % Measurement matrix
-            % H =   %------------ TO BE COMPLETED ---------------%
+            H = [1 0 0 0 0 0; 0 1 0 0 0 0];
             
             % Measurement noise covariance matrix
-            % R =   %------------ TO BE COMPLETED ---------------% 
+            R = diag([10 10].^2);
             
             % Compute Kalman filter gain
             % ---------------------------------------------------------
@@ -237,13 +252,12 @@ for i=1:nPts_IMU
     cov_kf(:,i) = diag(S); % Estimate error covariance
     
     % GPS/IRS navigation solution
-    % ----------------
-    % pn_GPS_IRS(i)  =   %------------ TO BE COMPLETED ---------------%
-    % pe_GPS_IRS(i)  =   %------------ TO BE COMPLETED ---------------%
-    % psi_GPS_IRS(i) =   %------------ TO BE COMPLETED ---------------%
-    % vAT_GPS_IRS(i) =   %------------ TO BE COMPLETED ---------------%
-    % vn_GPS_IRS(i)  =   %------------ TO BE COMPLETED ---------------%
-    % ve_GPS_IRS(i)  =   %------------ TO BE COMPLETED ---------------%
+    pn_GPS_IRS(i)  = pn_ins(i) + X_hat(1);  % North position corrected
+    pe_GPS_IRS(i)  = pe_ins(i) + X_hat(2);  % East position corrected
+    psi_GPS_IRS(i) = psi_ins(i) + X_hat(3); % Heading corrected
+    vAT_GPS_IRS(i) = vAT_ins(i) + X_hat(4); % Along track velocity corrected
+    vn_GPS_IRS(i)  = vn_ins(i) + X_hat(5);  % North velocity corrected
+    ve_GPS_IRS(i)  = ve_ins(i) + X_hat(6);  % East velocity corrected
     
 end % end(for i=1:nPts_IMU)
 
