@@ -68,12 +68,12 @@ w_bi_b = w_bi_p*R_platform2body;
 % Correct the heading rate measurement from initial gyro bias
 % ---------------------------------------
 HeadingRate_ins = w_bi_b(:,3); % Heading rate 
-bgyro = mean(HeadingRate_ins(1:2*Fs)); % The bias is estimated during the first 2s of data collection
+bgyro = 0; % The bias is estimated during the first 2s of data collection
 HeadingRate_ins = HeadingRate_ins - bgyro; % rad/s
 % Correct along track acceleration measurement from initial accelerometer bias
 % ---------------------------------------
 aAT_ins = f_bi_b(:,1); % Along track (AT) acceleration
-bacc = mean(aAT_ins(1:2*Fs)); % The bias is estimated during the first 2s of data collection
+bacc = 0; % The bias is estimated during the first 2s of data collection
 aAT_ins = f_bi_b(:,1) - bacc; % m/s²
 
 
